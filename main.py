@@ -291,7 +291,12 @@ while running:
                     for p in range(len(palette)):
                         palette[p].color = edit_window.palette[p]
 
-                    
+            if event.key == pyg.K_n:
+                if control:
+                    edit_window = ImageEditWindow((32, 32))
+                    for p in range(len(palette)):
+                        palette[p].color = edit_window.palette[p]
+
         if event.type == pyg.KEYUP:
             if event.key == pyg.K_LCTRL:
                 control = False
