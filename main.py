@@ -30,10 +30,34 @@ def clamp(value, min_value, max_value):
     return min(max(value, min_value), max_value)
 
 def load(filename):
-    file = open(filename, "r")
-    line = file.readline()
-    if line.startswith("PPA1"):
-        print("Good file!")
+    _file = open(filename, "r")
+    
+    _line = _file.readline()
+    if not _line.startswith("PPA1"):
+        print("Invalid file.\n")
+        return
+
+    _sizes = _file.readline().split()
+    if len(_sizes) != 2:
+        print("Invalid size!")
+        return
+    _w = int(_sizes[0])
+    _h = int(_sizes[1])
+
+    _palette_size = int(_file.readline())
+    _palette = []
+
+    for p in range(_palette_size):
+        _line = _file.readline().split()
+        _palette.append((int(_line[0]), int(_line[1]), int(_line[2])))
+    
+    _pixels = []
+    _line  = _file.readline().split()
+    for p in range(_w * _h):
+        _pixels.append(int(_line[p]))
+
+    return ImageEditWindow.from_data((_w, _h), _palette, _pixels)
+
 
 def save(filename):
     file = open(filename, "w")
@@ -199,11 +223,18 @@ class ImageEditWindow:
         self.size = size
         self.pixels = []
         self.palette_size = 16
-        self.palette = [(0, 0, 0), (128, 30, 67), (30, 30, 200), (64, 31, 20)]
-        for _ in range(self.palette_size - 4):
+        self.palette = []
+        for _ in range(self.palette_size):
             self.palette.append((0, 0, 0))
         for i in range(self.size[0] * self.size[1]):
             self.pixels.append(0)
+
+    def from_data(size, palette, pixels):
+        _from = ImageEditWindow(size)
+        _from.palette_size = len(palette)
+        _from.palette = list(palette)
+        _from.pixels = list(pixels)
+        return _from
 
     def render(self, surface, offset, pixel_size):
         pyg.draw.rect(surface, (255, 255, 255), (offset[0], offset[1], pixel_size * self.size[0], pixel_size * self.size[1]))
@@ -256,8 +287,11 @@ while running:
                     save("image.ppa")
             if event.key == pyg.K_l:
                 if control:
-                    load("image.ppa")
+                    edit_window = load("image.ppa")
+                    for p in range(len(palette)):
+                        palette[p].color = edit_window.palette[p]
 
+                    
         if event.type == pyg.KEYUP:
             if event.key == pyg.K_LCTRL:
                 control = False
