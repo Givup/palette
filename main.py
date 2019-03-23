@@ -1,5 +1,15 @@
 import pygame as pyg
 
+'''
+Controls:
+Ctrl-L: Load image.ppa
+Ctrl-S: Save image.ppa
+Ctrl-N: Create new image
+Scrollwheel: Scale pixels / Zoom
+Mouse Left / Right: Paint
+X: Swap main and secondary color
+'''
+
 SCREEN_W = 800
 SCREEN_H = 600
 
@@ -25,6 +35,20 @@ mouse_last = (0, 0)
 mouse_pos = (0, 0)
 mouse_delta = [0, 0]
 mouse_scroll = 0
+
+def is_inside(point, bounds):
+    if len(bounds) == 2:
+        assert(len(bounds[0]) == 2 and len(bounds[1]) == 2)
+        bounds = (bounds[0][0], bounds[0][1], bounds[1][0], bounds[1][1])
+    if point[0] < bounds[0]: 
+        return False
+    if point[0] > bounds[0] + bounds[2]: 
+        return False
+    if point[1] < bounds[1]:
+        return False
+    if point[1] > bounds[1] + bounds[3]:
+        return False
+    return True
 
 def clamp(value, min_value, max_value):
     return min(max(value, min_value), max_value)
@@ -86,6 +110,43 @@ class PaletteColor:
             pyg.draw.rect(surface, (255, 255, 255), (self.pos[0], self.pos[1], self.size[0], self.size[1]), 1)
         if self.index == current_secondary:
             pyg.draw.rect(surface, (255, 0, 255), (self.pos[0], self.pos[1], self.size[0], self.size[1]), 1)
+
+class Button:
+    def __init__(self, pos, size, text):
+        self.pos = pos
+        self.size = size
+        self.text = text
+        self.bounds = (pos, size)
+        self.text_surface = None
+        self.text_size = None
+        self.state = 0
+
+    def mouse_held(self, mouse):
+        (mx, my) = mouse
+
+    def mouse_released(self, mouse):
+        (mx, my) = mouse
+        # If mouse is released on top of this button
+        if is_inside(mouse, self.bounds):
+            if self.state == 1:
+                self.state = 0
+            elif self.state == 0:
+                self.state = 1
+
+    def is_down(self):
+        return self.state == 1
+
+    def render(self, surface, font):
+        if self.state == 0:
+            pyg.draw.rect(surface, (200, 200, 200), self.bounds)
+        if self.state == 1:
+            pyg.draw.rect(surface, (125, 125, 125), self.bounds)    
+        if self.text_surface == None:
+            self.text_surface = font.render(self.text, False, (0, 0, 0))
+            self.text_size = font.size(self.text)
+        text_off_x = self.pos[0] + self.size[0] / 2 - self.text_size[0] / 2
+        text_off_y = self.pos[1] + self.size[1] / 2 - self.text_size[1] / 2
+        surface.blit(self.text_surface, (text_off_x, text_off_y))
 
 class Slider:
     def __init__(self, color, pos, size):
@@ -236,11 +297,15 @@ class ImageEditWindow:
         _from.pixels = list(pixels)
         return _from
 
-    def render(self, surface, offset, pixel_size):
+    def render(self, surface, offset, pixel_size, show_grid):
         pyg.draw.rect(surface, (255, 255, 255), (offset[0], offset[1], pixel_size * self.size[0], pixel_size * self.size[1]))
         for y in range(self.size[1]):
             for x in range(self.size[0]):
-                pyg.draw.rect(surface, self.palette[self.pixels[x + y * self.size[0]]], (offset[0] + x * pixel_size, offset[1] + y * pixel_size, pixel_size, pixel_size))
+                if pixel_size >= 8 and show_grid:
+                    pyg.draw.rect(surface, (0, 0, 0), (offset[0] + x * pixel_size, offset[1] + y * pixel_size, pixel_size, pixel_size))
+                    pyg.draw.rect(surface, self.palette[self.pixels[x + y * self.size[0]]], (offset[0] + x * pixel_size + 1, offset[1] + y * pixel_size + 1, pixel_size - 2, pixel_size - 2))
+                else:
+                    pyg.draw.rect(surface, self.palette[self.pixels[x + y * self.size[0]]], (offset[0] + x * pixel_size, offset[1] + y * pixel_size, pixel_size, pixel_size))
 
     def set_pixel(self, pos, color):
         self.pixels[pos[0] + pos[1] * self.size[0]] = color
@@ -263,11 +328,13 @@ for i in range(16):
 selected_palette = 0
 selected_secondary = 1
 
-pix_x = 0
-pix_y = 0
 pix_size = 4
+pix_x = (SCREEN_W - TOOL_W) / 2 - edit_window.size[0] * pix_size / 2
+pix_y = SCREEN_H / 2 - edit_window.size[1] * pix_size / 2
 
 control = False
+
+grid_button = Button((15, SCREEN_H - 50), (TOOL_W / 4 * 3, 30), "GRID")
 
 while running:
     for event in pyg.event.get():
@@ -296,6 +363,12 @@ while running:
                     edit_window = ImageEditWindow((32, 32))
                     for p in range(len(palette)):
                         palette[p].color = edit_window.palette[p]
+
+            if event.key == pyg.K_x:
+                _temp_palette = selected_palette
+                selected_palette = selected_secondary
+                selected_secondary = _temp_palette
+                picker.set_color(palette[selected_palette].color)
 
         if event.type == pyg.KEYUP:
             if event.key == pyg.K_LCTRL:
@@ -347,6 +420,7 @@ while running:
         picker.mouse_pressed(mouse_pos)
     elif mouse_released[MLEFT]:
         picker.mouse_released(mouse_pos)
+        grid_button.mouse_released(mouse_pos)
     if mouse_down[MLEFT]:
         mouse_consumed = picker.mouse_drag(mouse_last, mouse_delta)
 
@@ -399,7 +473,7 @@ while running:
     
     pyg.draw.rect(screen, (170, 170, 170), (0, 0, 125, SCREEN_H))
 
-    edit_window.render(edit_surface, (pix_x, pix_y), pix_size)
+    edit_window.render(edit_surface, (pix_x, pix_y), pix_size, grid_button.is_down())
 
     screen.blit(edit_surface, (TOOL_W, 0))
 
@@ -408,6 +482,8 @@ while running:
         edit_window.palette[i] = pc.color
 
     picker.render(screen)
+
+    grid_button.render(screen, font)
 
     pyg.display.flip()
 
