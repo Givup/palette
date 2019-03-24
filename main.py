@@ -55,10 +55,10 @@ mouse_scroll = 0
 
 def load_assets():
     global icon_color_wheel, icon_color_wheel_active, icon_grid, icon_grid_active
-    icon_color_wheel = pyg.image.load("color_wheel.png")
-    icon_color_wheel_active = pyg.image.load("color_wheel_active.png")
-    icon_grid = pyg.image.load("grid_icon.png")
-    icon_grid_active = pyg.image.load("grid_icon_active.png")
+    icon_color_wheel = pyg.image.load("icons/color_wheel.png")
+    icon_color_wheel_active = pyg.image.load("icons/color_wheel_active.png")
+    icon_grid = pyg.image.load("icons/grid_icon.png")
+    icon_grid_active = pyg.image.load("icons/grid_icon_active.png")
 
 def is_inside(point, bounds):
     if len(bounds) == 2:
