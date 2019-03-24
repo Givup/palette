@@ -1,5 +1,13 @@
+import os
+
 import pygame as pyg
 import png
+
+import tkinter as tk
+from tkinter import simpledialog
+from tkinter import filedialog
+
+working_directory = os.path.dirname(os.path.realpath(__file__))
 
 '''
 Controls:
@@ -10,6 +18,14 @@ Scrollwheel: Scale pixels / Zoom
 Mouse Left / Right: Paint
 X: Swap main and secondary color
 '''
+
+tk_root = tk.Tk()
+tk_root.withdraw()
+
+icon_color_wheel = None
+icon_color_wheel_active = None
+icon_grid = None
+icon_grid_active = None
 
 SCREEN_W = 800
 SCREEN_H = 600
@@ -37,6 +53,13 @@ mouse_pos = (0, 0)
 mouse_delta = [0, 0]
 mouse_scroll = 0
 
+def load_assets():
+    global icon_color_wheel, icon_color_wheel_active, icon_grid, icon_grid_active
+    icon_color_wheel = pyg.image.load("color_wheel.png")
+    icon_color_wheel_active = pyg.image.load("color_wheel_active.png")
+    icon_grid = pyg.image.load("grid_icon.png")
+    icon_grid_active = pyg.image.load("grid_icon_active.png")
+
 def is_inside(point, bounds):
     if len(bounds) == 2:
         assert(len(bounds[0]) == 2 and len(bounds[1]) == 2)
@@ -54,8 +77,11 @@ def is_inside(point, bounds):
 def clamp(value, min_value, max_value):
     return min(max(value, min_value), max_value)
 
-def load(filename):
-    _file = open(filename, "r")
+def load():
+    _filename = filedialog.askopenfilename(initialdir = working_directory, title = "Load PPA file", filetypes = (("PPA File", "*.ppa"), ("All files", "*.*")))
+    if len(_filename) <= 0:
+        return None
+    _file = open(_filename, "r")
     
     _line = _file.readline()
     if not _line.startswith("PPA1"):
@@ -84,8 +110,9 @@ def load(filename):
     return ImageEditWindow.from_data((_w, _h), _palette, _pixels)
 
 
-def save(filename):
-    file = open(filename, "w")
+def save():
+    _filename = filedialog.asksaveasfilename(initialdir = working_directory, title = "Save as", filetypes = (("PPA Files", "*.ppa"), ("All files", "*.*")))
+    file = open(_filename, "w")
     file.write("PPA1\n")
     file.write(str(edit_window.get_w()) + " " + str(edit_window.get_h()) + "\n")
     file.write(str(len(edit_window.palette)) + "\n")
@@ -94,12 +121,40 @@ def save(filename):
     for pix in edit_window.pixels:
         file.write(str(pix) + " ")
 
-def export_png(filename):
-    file = open(filename, "wb")
+def export_png():
+    _filename = filedialog.asksaveasfilename(initialdir = working_directory, title = "Export file", filetypes = (("PNG File", "*.png"), ("All files", "*.*")))
+    file = open(_filename, "wb")
     w = png.Writer(size = edit_window.get_size(), greyscale = False, palette = edit_window.get_palette())
     w.write(file, edit_window.get_index_data())
     # w.write(f, edit_window.get_pixel_data())
     file.close()
+    
+def import_png():
+    _filename = filedialog.askopenfilename(initialdir = working_directory, title = "Select import file", filetypes = (("PNG files", "*.png"), ("All files", "*.*")))
+    #_filename = simpledialog.askstring("Import", "Filename", initialvalue="import.png")
+    if _filename == None:
+        return None
+    if not _filename.endswith(".png"):
+        _filename += ".png"
+    try:
+        _reader = png.Reader(filename = _filename)
+
+        (_w, _h, _values, _info) = _reader.read_flat()
+
+        _image = ImageEditWindow(_info["size"]);
+
+        _is_palette = len(_info["palette"]) > 0
+
+        if _is_palette:
+            _image.palette = _info["palette"]
+            _image.pixels = _values;
+            return _image
+        else:
+            print("Non-palette images not supported currently.")
+            return None
+    except (TypeError, FileNotFoundError):
+        print("Couldn't import", _filename)
+        return None
 
 class PaletteColor:
     def __init__(self, index, color, pos, size):
@@ -120,20 +175,36 @@ class PaletteColor:
             pyg.draw.rect(surface, (255, 0, 255), (self.pos[0], self.pos[1], self.size[0], self.size[1]), 1)
 
 class Button:
-    def __init__(self, pos, size, text):
+    def __init__(self, pos, size = (0, 0), text = None, image = None):
         self.pos = pos
-        self.size = size
+        if image != None:
+            if isinstance(image, list):
+                self.size = image.get_size()
+            else:
+                self.size = image[0].get_size()
+        else:
+            self.size = size
         self.text = text
-        self.bounds = (pos, size)
-        self.text_surface = None
-        self.text_size = None
+        self.image = image
+
+        self.bounds = (pos, self.size)
+
+        if text != None:
+            self.text_surface = None
+            self.text_size = None
+
         self.state = 0
+
+    def toggle(self):
+        if self.state == 0:
+            self.state = 1
+        else:
+            self.state = 0
 
     def mouse_held(self, mouse):
         (mx, my) = mouse
 
     def mouse_released(self, mouse):
-        (mx, my) = mouse
         # If mouse is released on top of this button
         if is_inside(mouse, self.bounds):
             if self.state == 1:
@@ -149,13 +220,22 @@ class Button:
             pyg.draw.rect(surface, (200, 200, 200), self.bounds)
         if self.state == 1:
             pyg.draw.rect(surface, (125, 125, 125), self.bounds)    
-        if self.text_surface == None:
-            self.text_surface = font.render(self.text, False, (0, 0, 0))
-            self.text_size = font.size(self.text)
-        text_off_x = self.pos[0] + self.size[0] / 2 - self.text_size[0] / 2
-        text_off_y = self.pos[1] + self.size[1] / 2 - self.text_size[1] / 2
-        surface.blit(self.text_surface, (text_off_x, text_off_y))
-
+        if self.text != None:
+            if self.text_surface == None:
+                self.text_surface = font.render(self.text, False, (0, 0, 0))
+                self.text_size = font.size(self.text)
+            text_off_x = self.pos[0] + self.size[0] / 2 - self.text_size[0] / 2
+            text_off_y = self.pos[1] + self.size[1] / 2 - self.text_size[1] / 2
+            surface.blit(self.text_surface, (text_off_x, text_off_y))
+        elif self.image != None:
+            if isinstance(self.image, list):
+                surface.blit(self.image, self.pos)
+            else:
+                if self.state == 0:
+                    surface.blit(self.image[0], self.pos)
+                elif self.state == 1:
+                    surface.blit(self.image[1], self.pos)
+                    
 class Slider:
     def __init__(self, color, pos, size):
         self.pos = pos
@@ -265,6 +345,9 @@ class ColorPicker:
 
     def mouse_released(self, mouse):
         self.focus = False
+
+    def set_state(self, state):
+        self.show = state
     
     def show(self):
         self.show = True
@@ -370,7 +453,11 @@ pix_y = SCREEN_H / 2 - edit_window.size[1] * pix_size / 2
 
 control = False
 
-grid_button = Button((15, SCREEN_H - 50), (TOOL_W / 4 * 3, 30), "GRID")
+load_assets()
+grid_button = Button((4, SCREEN_H - 50), image = (icon_grid, icon_grid_active))
+wheel_button = Button((40, SCREEN_H - 50), image = (icon_color_wheel, icon_color_wheel_active))
+
+buttons = (grid_button, wheel_button)
 
 while running:
     for event in pyg.event.get():
@@ -384,24 +471,38 @@ while running:
                 running = False
 
             if event.key == pyg.K_c:
-                picker.toggle()
+                wheel_button.toggle()
 
             if event.key == pyg.K_LCTRL:
                 control = True
 
             if event.key == pyg.K_s:
                 if control:
-                    save("image.ppa")
+                    save()
 
             if event.key == pyg.K_l:
                 if control:
-                    edit_window = load("image.ppa")
-                    for p in range(len(palette)):
-                        palette[p].color = edit_window.palette[p]
+                    new_image = load()
+                    if new_image != None:
+                        edit_window = new_image
+                        for p in range(len(palette)):
+                            palette[p].color = edit_window.palette[p]
 
             if event.key == pyg.K_e:
                 if control:
-                    export_png("export.png")
+                    export_png()
+
+            if event.key == pyg.K_i:
+                if control:
+                    new_image = import_png()
+                    if new_image != None:
+                        edit_window = new_image
+                        for p in range(len(palette)):
+                            palette[p].color = edit_window.palette[p]
+
+            if event.key == pyg.K_r:
+                if control:
+                    load_assets()
 
             if event.key == pyg.K_n:
                 if control:
@@ -461,11 +562,14 @@ while running:
 
 # Update
 
+    picker.set_state(wheel_button.is_down())
+
     if mouse_clicked[MLEFT]:
         picker.mouse_pressed(mouse_pos)
     elif mouse_released[MLEFT]:
         picker.mouse_released(mouse_pos)
-        grid_button.mouse_released(mouse_pos)
+        for button in buttons:
+            button.mouse_released(mouse_pos)
     if mouse_down[MLEFT]:
         mouse_consumed = picker.mouse_drag(mouse_last, mouse_delta)
 
@@ -526,10 +630,11 @@ while running:
         pc.render(screen, selected_palette, selected_secondary)
         edit_window.palette[i] = pc.color
 
-    picker.render(screen)
-
     grid_button.render(screen, font)
+    wheel_button.render(screen, font);
 
+    picker.render(screen)
+    
     pyg.display.flip()
 
     mouse_clicked = [False, False, False]
