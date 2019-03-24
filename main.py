@@ -1,4 +1,5 @@
 import pygame as pyg
+import png
 
 '''
 Controls:
@@ -92,6 +93,13 @@ def save(filename):
         file.write(str(edit_window.palette[p][0]) + " " + str(edit_window.palette[p][1]) + " " + str(edit_window.palette[p][2]) + "\n")
     for pix in edit_window.pixels:
         file.write(str(pix) + " ")
+
+def export_png(filename):
+    file = open(filename, "wb")
+    w = png.Writer(size = edit_window.get_size(), greyscale = False, palette = edit_window.get_palette())
+    w.write(file, edit_window.get_index_data())
+    # w.write(f, edit_window.get_pixel_data())
+    file.close()
 
 class PaletteColor:
     def __init__(self, index, color, pos, size):
@@ -316,6 +324,34 @@ class ImageEditWindow:
     def get_h(self):
         return self.size[1]
 
+    def get_size(self):
+        return self.size
+
+    def get_palette(self):
+        _pal = list()
+        for pc in self.palette:
+            _pal.append(pc)
+        return _pal
+
+    def get_index_data(self):
+        _data = list()
+        for r in range(self.get_h()):
+            _row = list()
+            for c in range(self.get_w()):
+                _row.append(self.pixels[c + r * self.get_h()])
+            _data.append(list(_row))
+        return _data
+
+    def get_pixel_data(self):
+        _data = list()
+        _pal = self.get_palette()
+        for r in range(self.get_h()):
+            _row = list()
+            for c in range(self.get_w()):
+                _row.append(_pal[self.pixels[c + r * self.get_h()]])
+            _data.append(list(_row))
+        return _data
+
 edit_window = ImageEditWindow((32, 32))
 picker = ColorPicker()
 
@@ -343,20 +379,29 @@ while running:
             running = False
 
         if event.type == pyg.KEYDOWN:
+
             if event.key == pyg.K_ESCAPE:
                 running = False
+
             if event.key == pyg.K_c:
                 picker.toggle()
+
             if event.key == pyg.K_LCTRL:
                 control = True
+
             if event.key == pyg.K_s:
                 if control:
                     save("image.ppa")
+
             if event.key == pyg.K_l:
                 if control:
                     edit_window = load("image.ppa")
                     for p in range(len(palette)):
                         palette[p].color = edit_window.palette[p]
+
+            if event.key == pyg.K_e:
+                if control:
+                    export_png("export.png")
 
             if event.key == pyg.K_n:
                 if control:
