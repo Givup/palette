@@ -64,6 +64,35 @@ mouse_pos = (0, 0)
 mouse_delta = [0, 0]
 mouse_scroll = 0
 
+# From Rosetta Code: Bresenham's line algorithm
+def line(x0, y0, x1, y1):
+    _points = []
+    dx = abs(x1 - x0)
+    dy = abs(y1 - y0)
+    x, y = x0, y0
+    sx = -1 if x0 > x1 else 1
+    sy = -1 if y0 > y1 else 1
+    if dx > dy:
+        err = dx / 2.0
+        while x != x1:
+            _points.append((x, y))
+            err -= dy
+            if err < 0:
+                y += sy
+                err += dx
+            x += sx
+    else:
+        err = dy / 2.0
+        while y != y1:
+            _points.append((x, y))
+            err -= dx
+            if err < 0:
+                x += sx
+                err += dy
+            y += sy
+    _points.append((x, y))
+    return _points
+
 def create_default_palette():
     global palette
     palette = []
@@ -627,17 +656,23 @@ while running:
     # Editing the image
     if mouse_down.count(True) == 1 and not mouse_down[MMIDDLE] and not mouse_consumed and not picker.focus:
         (mx, my) = mouse_pos
+        (mxl, myl) = mouse_last # Last mouse position
         mx -= TOOL_W # Exclude the tool window area
+        mxl -= TOOL_W # Exclude the tool window area
         if mx > 0: # If we are in the editor window area
             if mx >= pix_x and mx < (pix_x + edit_window.get_w() * pix_size) and my >= pix_y and my < (pix_y + edit_window.get_h() * pix_size):
                 # Pixel position (px, py)
-                px = int((mx - pix_x) / pix_size)
-                py = int((my - pix_y) / pix_size)
-                if px >= 0 and px < edit_window.get_w() and py >= 0 and py < edit_window.get_h():
-                    if mouse_down[MLEFT]:
-                        edit_window.set_pixel((px, py), selected_palette)
-                    elif mouse_down[MRIGHT]:
-                        edit_window.set_pixel((px, py), selected_secondary)
+                px0 = int((mx - pix_x) / pix_size)
+                py0 = int((my - pix_y) / pix_size)
+                px1 = int((mxl - pix_x) / pix_size)
+                py1 = int((myl - pix_y) / pix_size)
+                if px0 >= 0 and px0 < edit_window.get_w() and py0 >= 0 and py0 < edit_window.get_h():
+                    if px1 >= 0 and px1 < edit_window.get_w() and py1 >= 0 and py1 < edit_window.get_h():
+                        _palette_index = selected_palette
+                        if mouse_down[MRIGHT]:
+                            _palette_index = selected_secondary
+                        for point in line(px0, py0, px1, py1):
+                            edit_window.set_pixel(point, _palette_index)
     
     if mouse_down[MMIDDLE]:
         pix_x += mouse_delta[0]
