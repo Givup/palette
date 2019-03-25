@@ -11,12 +11,20 @@ working_directory = os.path.dirname(os.path.realpath(__file__))
 
 '''
 Controls:
+
 Ctrl-L: Load image.ppa
 Ctrl-S: Save image.ppa
 Ctrl-N: Create new image
+Ctrl-E: Export image (PNG)
+Ctrl-I: Import image (PNG, doesn't always work)
+
 Scrollwheel: Scale pixels / Zoom
 Mouse Left / Right: Paint
+
 X: Swap main and secondary color
+C: Toggle color picker visibility
+
+Escape: Quit application
 '''
 
 tk_root = tk.Tk()
