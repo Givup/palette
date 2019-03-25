@@ -377,9 +377,9 @@ class ImageEditWindow:
         self.palette_size = 16
         self.palette = []
         for _ in range(self.palette_size):
-            self.palette.append((0, 0, 0))
+            self.palette.append((255, 255, 255))
         for i in range(self.size[0] * self.size[1]):
-            self.pixels.append(0)
+            self.pixels.append(self.palette_size - 1)
 
     def from_data(size, palette, pixels):
         _from = ImageEditWindow(size)
@@ -442,10 +442,15 @@ palette = []
 for i in range(16):
     x = 10 + (i % 2) * 50
     y = 25 + 50 * int(i / 2)
-    palette.append(PaletteColor(i, (0, 0, 0), (x, y), (40, 40)))
+    _color = (0, 0, 0)
+    if i == 0:
+        _color = (255, 255, 255)
+    palette.append(PaletteColor(i, _color, (x, y), (40, 40)))
 
 selected_palette = 0
 selected_secondary = 1
+
+picker.set_color(palette[selected_palette].color)
 
 pix_size = 4
 pix_x = (SCREEN_W - TOOL_W) / 2 - edit_window.size[0] * pix_size / 2
@@ -612,6 +617,7 @@ while running:
                 if selected_palette == pc.index:
                     selected_palette = selected_secondary
                 selected_secondary = pc.index
+                picker.set_color(palette[selected_palette].color)
 
     palette[selected_palette].color = picker.get_color()
 
