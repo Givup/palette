@@ -219,12 +219,14 @@ class Button:
             self.text_size = None
 
         self.state = 0
+        self.changed_state = 0
 
     def toggle(self):
         if self.state == 0:
             self.state = 1
         else:
             self.state = 0
+        self.changed_state = 1
 
     def mouse_held(self, mouse):
         (mx, my) = mouse
@@ -232,15 +234,13 @@ class Button:
     def mouse_released(self, mouse):
         # If mouse is released on top of this button
         if is_inside(mouse, self.bounds):
-            if self.state == 1:
-                self.state = 0
-            elif self.state == 0:
-                self.state = 1
+            self.toggle()
 
     def is_down(self):
         return self.state == 1
 
     def render(self, surface, font):
+        self.changed_state = 0
         if self.state == 0:
             pyg.draw.rect(surface, (200, 200, 200), self.bounds)
         if self.state == 1:
@@ -373,6 +373,9 @@ class ColorPicker:
 
     def set_state(self, state):
         self.show = state
+        
+    def get_state(self):
+        return self.show
     
     def show(self):
         self.show = True
@@ -592,8 +595,6 @@ while running:
 
 # Update
 
-    picker.set_state(wheel_button.is_down())
-
     if mouse_clicked[MLEFT]:
         picker.mouse_pressed(mouse_pos)
     elif mouse_released[MLEFT]:
@@ -603,6 +604,12 @@ while running:
     if mouse_down[MLEFT]:
         mouse_consumed = picker.mouse_drag(mouse_last, mouse_delta)
 
+    # Next block must be after mouse clicks and releases
+    # Force color wheel down if it is closed with the '-' sign on the picker itself
+    if not picker.show and not wheel_button.changed_state == 1 and wheel_button.state == 1:
+        wheel_button.state = 0
+    picker.set_state(wheel_button.is_down())
+    
     # Editing the image
     if mouse_down.count(True) == 1 and not mouse_down[MMIDDLE] and not mouse_consumed and not picker.focus:
         (mx, my) = mouse_pos
