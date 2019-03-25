@@ -24,6 +24,7 @@ Mouse Left / Right: Paint
 
 X: Swap main and secondary color
 C: Toggle color picker visibility
+G: Toggle grid visibility
 
 Escape: Quit application
 '''
@@ -35,6 +36,7 @@ icon_color_wheel = None
 icon_color_wheel_active = None
 icon_grid = None
 icon_grid_active = None
+icon_logo = None
 
 SCREEN_W = 800
 SCREEN_H = 600
@@ -79,11 +81,14 @@ def ask_width_height():
     return (_w, _h)
 
 def load_assets():
-    global icon_color_wheel, icon_color_wheel_active, icon_grid, icon_grid_active
+    global icon_color_wheel, icon_color_wheel_active, icon_grid, icon_grid_active, icon_logo
     icon_color_wheel = pyg.image.load("icons/color_wheel.png")
     icon_color_wheel_active = pyg.image.load("icons/color_wheel_active.png")
     icon_grid = pyg.image.load("icons/grid_icon.png")
     icon_grid_active = pyg.image.load("icons/grid_icon_active.png")
+    icon_logo = pyg.image.load("icons/icon_logo.png")
+
+    pyg.display.set_icon(icon_logo)
 
 def is_inside(point, bounds):
     if len(bounds) == 2:
@@ -137,6 +142,8 @@ def load():
 
 def save():
     _filename = filedialog.asksaveasfilename(initialdir = working_directory, title = "Save as", filetypes = (("PPA Files", "*.ppa"), ("All files", "*.*")))
+    if len(_filename) <= 0:
+        return
     file = open(_filename, "w")
     file.write("PPA1\n")
     file.write(str(edit_window.get_w()) + " " + str(edit_window.get_h()) + "\n")
@@ -148,6 +155,8 @@ def save():
 
 def export_png():
     _filename = filedialog.asksaveasfilename(initialdir = working_directory, title = "Export file", filetypes = (("PNG File", "*.png"), ("All files", "*.*")))
+    if len(_filename) <= 0:
+        return
     file = open(_filename, "wb")
     w = png.Writer(size = edit_window.get_size(), greyscale = False, palette = edit_window.get_palette())
     w.write(file, edit_window.get_index_data())
@@ -526,6 +535,9 @@ while running:
                         edit_window = new_image
                         for p in range(len(palette)):
                             palette[p].color = edit_window.palette[p]
+                        selected_palette = 0
+                        selected_secondary = 1
+                        picker.set_color(palette[selected_palette].color)
 
             if event.key == pyg.K_r:
                 if control:
@@ -549,10 +561,12 @@ while running:
                 selected_secondary = _temp_palette
                 picker.set_color(palette[selected_palette].color)
 
+            if event.key == pyg.K_g:
+                grid_button.toggle()
+
         if event.type == pyg.KEYUP:
             if event.key == pyg.K_LCTRL:
                 control = False
-
 
         if event.type == pyg.MOUSEBUTTONDOWN:
             if event.button == 1:
