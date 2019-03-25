@@ -14,9 +14,10 @@ Controls:
 
 Ctrl-L: Load image.ppa
 Ctrl-S: Save image.ppa
-Ctrl-N: Create new image
+Ctrl-N: Create new image (32x32 by default)
 Ctrl-E: Export image (PNG)
 Ctrl-I: Import image (PNG, doesn't always work)
+Ctrl-R: Reload assets (icons)
 
 Scrollwheel: Scale pixels / Zoom
 Mouse Left / Right: Paint
