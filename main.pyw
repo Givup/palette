@@ -62,6 +62,22 @@ mouse_pos = (0, 0)
 mouse_delta = [0, 0]
 mouse_scroll = 0
 
+def create_default_palette():
+    global palette
+    palette = []
+    for i in range(16):
+        x = 10 + (i % 2) * 50
+        y = 25 + 50 * int(i / 2)
+        _color = (0, 0, 0)
+        if i == 0:
+            _color = (255, 255, 255)
+        palette.append(PaletteColor(i, _color, (x, y), (40, 40)))
+
+def ask_width_height():
+    _w = simpledialog.askinteger(title="New width", prompt="Width")
+    _h = simpledialog.askinteger(title="New height", prompt="Height")
+    return (_w, _h)
+
 def load_assets():
     global icon_color_wheel, icon_color_wheel_active, icon_grid, icon_grid_active
     icon_color_wheel = pyg.image.load("icons/color_wheel.png")
@@ -448,13 +464,7 @@ edit_window = ImageEditWindow((32, 32))
 picker = ColorPicker()
 
 palette = []
-for i in range(16):
-    x = 10 + (i % 2) * 50
-    y = 25 + 50 * int(i / 2)
-    _color = (0, 0, 0)
-    if i == 0:
-        _color = (255, 255, 255)
-    palette.append(PaletteColor(i, _color, (x, y), (40, 40)))
+create_default_palette()
 
 selected_palette = 0
 selected_secondary = 1
@@ -520,9 +530,15 @@ while running:
 
             if event.key == pyg.K_n:
                 if control:
-                    edit_window = ImageEditWindow((32, 32))
-                    for p in range(len(palette)):
-                        palette[p].color = edit_window.palette[p]
+                    (_w, _h) = ask_width_height()
+                    if _w > 0 and _h > 0:
+                        edit_window = ImageEditWindow((_w, _h))
+                        create_default_palette()
+                        selected_palette = 0
+                        selected_secondary = 1
+                        picker.set_color(palette[selected_palette].color)
+                        for p in range(len(palette)):
+                            edit_window.palette[p] = palette[p].color
 
             if event.key == pyg.K_x:
                 _temp_palette = selected_palette
