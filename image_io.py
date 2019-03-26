@@ -43,7 +43,7 @@ def load():
     return ImageEditWindow.from_data((_w, _h), _palette, _pixels)
 
 
-def save():
+def save(edit_window):
     _filename = filedialog.asksaveasfilename(initialdir = working_directory, title = "Save as", filetypes = (("PPA Files", "*.ppa"), ("All files", "*.*")))
     if len(_filename) <= 0:
         return
@@ -56,7 +56,7 @@ def save():
     for pix in edit_window.pixels:
         file.write(str(pix) + " ")
 
-def export_png():
+def export_png(edit_window):
     _filename = filedialog.asksaveasfilename(initialdir = working_directory, title = "Export file", filetypes = (("PNG File", "*.png"), ("All files", "*.*")))
     if len(_filename) <= 0:
         return

@@ -123,7 +123,7 @@ while running:
 
             if event.key == pyg.K_s:
                 if control:
-                    save()
+                    save(edit_window)
 
             if event.key == pyg.K_l:
                 if control:
@@ -135,7 +135,7 @@ while running:
 
             if event.key == pyg.K_e:
                 if control:
-                    export_png()
+                    export_png(edit_window)
 
             if event.key == pyg.K_i:
                 if control:
@@ -214,9 +214,9 @@ while running:
             mouse_pos = event.pos
             mouse_last = (mouse_pos[0] - mouse_delta[0], mouse_pos[1] - mouse_delta[1])
 
-    mouse_consumed = False
-
 # Update
+
+    mouse_consumed = False
 
     picker.update((SCREEN_W, SCREEN_H))
 
