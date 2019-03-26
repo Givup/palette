@@ -218,6 +218,8 @@ while running:
 
 # Update
 
+    picker.update((SCREEN_W, SCREEN_H))
+
     if mouse_clicked[MLEFT]:
         picker.mouse_pressed(mouse_pos)
     elif mouse_released[MLEFT]:

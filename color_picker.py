@@ -19,6 +19,10 @@ class ColorPicker:
         b_slider = Slider((0, 0, 255), (10, 200), (self.size[0] - 20, 30))
         self.sliders = (r_slider, g_slider, b_slider)
 
+    def update(self, window_size):
+        self.pos[0] = clamp(self.pos[0], 0, window_size[0] - self.size[0])
+        self.pos[1] = clamp(self.pos[1], 0, window_size[1] - self.size[1])
+
     def render(self, surface, font):
         self.changed = False
         if self.show:
