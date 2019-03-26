@@ -2,4 +2,6 @@
 *.png
 *.ppa
 
+__pycache__
+
 !icons/*.png

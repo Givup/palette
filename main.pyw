@@ -1,13 +1,21 @@
 import os
 
+'''
+Private imports
+'''
+
+from assets import Assets
+from image_io import *
+from ui_elements import *
+from palette import *
+from color_picker import *
+
 import pygame as pyg
-import png
 
 import tkinter as tk
 from tkinter import simpledialog
 from tkinter import filedialog
-
-working_directory = os.path.dirname(os.path.realpath(__file__))
+from maths import *
 
 '''
 Controls:
@@ -31,12 +39,6 @@ Escape: Quit application
 
 tk_root = tk.Tk()
 tk_root.withdraw()
-
-icon_color_wheel = None
-icon_color_wheel_active = None
-icon_grid = None
-icon_grid_active = None
-icon_logo = None
 
 SCREEN_W = 800
 SCREEN_H = 600
@@ -64,448 +66,17 @@ mouse_pos = (0, 0)
 mouse_delta = [0, 0]
 mouse_scroll = 0
 
-# From Rosetta Code: Bresenham's line algorithm
-def line(x0, y0, x1, y1):
-    _points = []
-    dx = abs(x1 - x0)
-    dy = abs(y1 - y0)
-    x, y = x0, y0
-    sx = -1 if x0 > x1 else 1
-    sy = -1 if y0 > y1 else 1
-    if dx > dy:
-        err = dx / 2.0
-        while x != x1:
-            _points.append((x, y))
-            err -= dy
-            if err < 0:
-                y += sy
-                err += dx
-            x += sx
-    else:
-        err = dy / 2.0
-        while y != y1:
-            _points.append((x, y))
-            err -= dx
-            if err < 0:
-                x += sx
-                err += dy
-            y += sy
-    _points.append((x, y))
-    return _points
-
-def create_default_palette():
-    global palette
-    palette = []
-    for i in range(16):
-        x = 10 + (i % 2) * 50
-        y = 25 + 50 * int(i / 2)
-        _color = (0, 0, 0)
-        if i == 0:
-            _color = (255, 255, 255)
-        palette.append(PaletteColor(i, _color, (x, y), (40, 40)))
-
 def ask_width_height():
     _w = simpledialog.askinteger(title="New width", prompt="Width")
     _h = simpledialog.askinteger(title="New height", prompt="Height")
     return (_w, _h)
 
-def load_assets():
-    global icon_color_wheel, icon_color_wheel_active, icon_grid, icon_grid_active, icon_logo
-    icon_color_wheel = pyg.image.load("icons/color_wheel.png")
-    icon_color_wheel_active = pyg.image.load("icons/color_wheel_active.png")
-    icon_grid = pyg.image.load("icons/grid_icon.png")
-    icon_grid_active = pyg.image.load("icons/grid_icon_active.png")
-    icon_logo = pyg.image.load("icons/icon_logo.png")
-
-    pyg.display.set_icon(icon_logo)
-
-def is_inside(point, bounds):
-    if len(bounds) == 2:
-        assert(len(bounds[0]) == 2 and len(bounds[1]) == 2)
-        bounds = (bounds[0][0], bounds[0][1], bounds[1][0], bounds[1][1])
-    if point[0] < bounds[0]: 
-        return False
-    if point[0] > bounds[0] + bounds[2]: 
-        return False
-    if point[1] < bounds[1]:
-        return False
-    if point[1] > bounds[1] + bounds[3]:
-        return False
-    return True
-
-def clamp(value, min_value, max_value):
-    return min(max(value, min_value), max_value)
-
-def load():
-    _filename = filedialog.askopenfilename(initialdir = working_directory, title = "Load PPA file", filetypes = (("PPA File", "*.ppa"), ("All files", "*.*")))
-    if len(_filename) <= 0:
-        return None
-    _file = open(_filename, "r")
-    
-    _line = _file.readline()
-    if not _line.startswith("PPA1"):
-        print("Invalid file.\n")
-        return
-
-    _sizes = _file.readline().split()
-    if len(_sizes) != 2:
-        print("Invalid size!")
-        return
-    _w = int(_sizes[0])
-    _h = int(_sizes[1])
-
-    _palette_size = int(_file.readline())
-    _palette = []
-
-    for p in range(_palette_size):
-        _line = _file.readline().split()
-        _palette.append((int(_line[0]), int(_line[1]), int(_line[2])))
-    
-    _pixels = []
-    _line  = _file.readline().split()
-    for p in range(_w * _h):
-        _pixels.append(int(_line[p]))
-
-    return ImageEditWindow.from_data((_w, _h), _palette, _pixels)
-
-
-def save():
-    _filename = filedialog.asksaveasfilename(initialdir = working_directory, title = "Save as", filetypes = (("PPA Files", "*.ppa"), ("All files", "*.*")))
-    if len(_filename) <= 0:
-        return
-    file = open(_filename, "w")
-    file.write("PPA1\n")
-    file.write(str(edit_window.get_w()) + " " + str(edit_window.get_h()) + "\n")
-    file.write(str(len(edit_window.palette)) + "\n")
-    for p in range(len(edit_window.palette)):
-        file.write(str(edit_window.palette[p][0]) + " " + str(edit_window.palette[p][1]) + " " + str(edit_window.palette[p][2]) + "\n")
-    for pix in edit_window.pixels:
-        file.write(str(pix) + " ")
-
-def export_png():
-    _filename = filedialog.asksaveasfilename(initialdir = working_directory, title = "Export file", filetypes = (("PNG File", "*.png"), ("All files", "*.*")))
-    if len(_filename) <= 0:
-        return
-    file = open(_filename, "wb")
-    w = png.Writer(size = edit_window.get_size(), greyscale = False, palette = edit_window.get_palette())
-    w.write(file, edit_window.get_index_data())
-    # w.write(f, edit_window.get_pixel_data())
-    file.close()
-    
-def import_png():
-    _filename = filedialog.askopenfilename(initialdir = working_directory, title = "Select import file", filetypes = (("PNG files", "*.png"), ("All files", "*.*")))
-    #_filename = simpledialog.askstring("Import", "Filename", initialvalue="import.png")
-    if _filename == None:
-        return None
-    if not _filename.endswith(".png"):
-        _filename += ".png"
-    try:
-        _reader = png.Reader(filename = _filename)
-
-        (_w, _h, _values, _info) = _reader.read_flat()
-
-        _image = ImageEditWindow(_info["size"]);
-
-        _is_palette = len(_info["palette"]) > 0
-
-        if _is_palette:
-            _image.palette = _info["palette"]
-            _image.pixels = _values;
-            return _image
-        else:
-            print("Non-palette images not supported currently.")
-            return None
-    except (TypeError, FileNotFoundError):
-        print("Couldn't import", _filename)
-        return None
-
-class PaletteColor:
-    def __init__(self, index, color, pos, size):
-        self.index = index
-        self.color = color
-        self.pos = pos
-        self.size = (30, 30)
-
-    def is_inside(self, mouse):
-        (mx, my) = mouse
-        return mx >= self.pos[0] and mx <= self.pos[0] + self.size[0] and my >= self.pos[1] and my <= self.pos[1] + self.size[1]
-
-    def render(self, surface, current_selection, current_secondary):
-        pyg.draw.rect(surface, (self.color), (self.pos[0], self.pos[1], self.size[0], self.size[1]))
-        if self.index == current_selection:
-            pyg.draw.rect(surface, (255, 255, 255), (self.pos[0], self.pos[1], self.size[0], self.size[1]), 1)
-        if self.index == current_secondary:
-            pyg.draw.rect(surface, (255, 0, 255), (self.pos[0], self.pos[1], self.size[0], self.size[1]), 1)
-
-class Button:
-    def __init__(self, pos, size = (0, 0), text = None, image = None):
-        self.pos = pos
-        if image != None:
-            if isinstance(image, list):
-                self.size = image.get_size()
-            else:
-                self.size = image[0].get_size()
-        else:
-            self.size = size
-        self.text = text
-        self.image = image
-
-        self.bounds = (pos, self.size)
-
-        if text != None:
-            self.text_surface = None
-            self.text_size = None
-
-        self.state = 0
-        self.changed_state = 0
-
-    def toggle(self):
-        if self.state == 0:
-            self.state = 1
-        else:
-            self.state = 0
-        self.changed_state = 1
-
-    def mouse_held(self, mouse):
-        (mx, my) = mouse
-
-    def mouse_released(self, mouse):
-        # If mouse is released on top of this button
-        if is_inside(mouse, self.bounds):
-            self.toggle()
-
-    def is_down(self):
-        return self.state == 1
-
-    def render(self, surface, font):
-        self.changed_state = 0
-        if self.state == 0:
-            pyg.draw.rect(surface, (200, 200, 200), self.bounds)
-        if self.state == 1:
-            pyg.draw.rect(surface, (125, 125, 125), self.bounds)    
-        if self.text != None:
-            if self.text_surface == None:
-                self.text_surface = font.render(self.text, False, (0, 0, 0))
-                self.text_size = font.size(self.text)
-            text_off_x = self.pos[0] + self.size[0] / 2 - self.text_size[0] / 2
-            text_off_y = self.pos[1] + self.size[1] / 2 - self.text_size[1] / 2
-            surface.blit(self.text_surface, (text_off_x, text_off_y))
-        elif self.image != None:
-            if isinstance(self.image, list):
-                surface.blit(self.image, self.pos)
-            else:
-                if self.state == 0:
-                    surface.blit(self.image[0], self.pos)
-                elif self.state == 1:
-                    surface.blit(self.image[1], self.pos)
-                    
-class Slider:
-    def __init__(self, color, pos, size):
-        self.pos = pos
-        self.offset = (0, 0)
-        self.color = color
-        self.size = size
-        self.value = 1
-
-    def render(self, surface, offset):
-        self.offset = offset
-        pos = (self.pos[0] + self.offset[0], self.pos[1] + self.offset[1])
-        pyg.draw.rect(surface, (self.color), (pos[0], pos[1], self.size[0], self.size[1]))
-        pyg.draw.rect(surface, (255, 255, 255), (pos[0], pos[1], self.size[0], self.size[1]), 1)
-        vx = self.value * (self.size[0])
-        pyg.draw.rect(surface, (255, 255, 255), (pos[0] - 5 + vx, pos[1], 10, self.size[1]))
-
-    def mouse_drag(self, mouse, delta):
-        (mx, my) = mouse
-        (dx, dy) = delta
-        (x, y) = (self.pos[0] + self.offset[0], self.pos[1] + self.offset[1])
-
-        if mx >= x and mx <= x + self.size[0] and my >= y and my <= y + self.size[1]:
-            self.value = (mx - x) / self.size[0]
-            self.value = clamp(self.value, 0, 1)
-            return True
-        return False
-
-    def get_value(self):
-        return self.value
-
-class ColorPicker:
-    def __init__(self):
-        self.pos = [SCREEN_W / 2 - 128, SCREEN_H / 2 - 128]
-        self.size = [256, 256]
-        self.r = 255
-        self.g = 255
-        self.b = 255
-        self.show = False
-        self.focus = False
-        self.changed = True
-        r_slider = Slider((255, 0, 0), (10, 120), (self.size[0] - 20, 30))
-        g_slider = Slider((0, 255, 0), (10, 160), (self.size[0] - 20, 30))
-        b_slider = Slider((0, 0, 255), (10, 200), (self.size[0] - 20, 30))
-        self.sliders = (r_slider, g_slider, b_slider)
-
-    def render(self, surface):
-        self.changed = False
-        if self.show:
-            pyg.draw.rect(surface, (127, 127, 127), (self.pos[0], self.pos[1], self.size[0], self.size[1]))
-            pyg.draw.rect(surface, (50, 50, 50), (self.pos[0], self.pos[1], self.size[0], 30))
-            pyg.draw.rect(surface, (130, 0, 0), (self.pos[0] + self.size[0] - 30, self.pos[1], 30, 30))
-            pyg.draw.rect(surface, (50, 0, 0), (self.pos[0] + self.size[0] - 25, self.pos[1] + 13, 20, 5))
-
-            pyg.draw.rect(surface, (self.r, self.g, self.b), (self.pos[0] + 60, self.pos[1] + 45, 50, 50))
-            pyg.draw.rect(surface, (255, 255, 255), (self.pos[0] + 60, self.pos[1] + 45, 50, 50), 3)
-
-            for slider in self.sliders:
-                slider.render(surface, self.pos)
-
-            rhex = f'{self.r:02X}'
-            ghex = f'{self.g:02X}'
-            bhex = f'{self.b:02X}'
-            title = font.render("Color Picker #" + rhex + ghex + bhex, False, (255, 255, 255))
-            surface.blit(title, (self.pos[0] + 5, self.pos[1] + 5))
-
-            rsurf = font.render("R: " + str(int(255 * self.sliders[0].get_value())), False, (255, 255, 255))
-            gsurf = font.render("G: " + str(int(255 * self.sliders[1].get_value())), False, (255, 255, 255))
-            bsurf = font.render("B: " + str(int(255 * self.sliders[2].get_value())), False, (255, 255, 255))
-
-            surface.blit(rsurf, (self.pos[0] + 125, self.pos[1] + 40))
-            surface.blit(gsurf, (self.pos[0] + 125, self.pos[1] + 60))
-            surface.blit(bsurf, (self.pos[0] + 125, self.pos[1] + 80))
-
-    def mouse_pressed(self, mouse):
-        if not self.show:
-            return
-        (mx, my) = mouse
-        if mx >= self.pos[0] and mx <= self.pos[0] + self.size[0] and my >= self.pos[1] and my <= self.pos[1] + self.size[1]:
-            self.focus = True
-            if mx >= self.pos[0] + self.size[0] - 30 and mx <= self.pos[0] + self.size[0]:
-                if my >= self.pos[1] and my <= self.pos[1] + 30:
-                    self.show = False
-
-    def mouse_drag(self, mouse, delta):
-        consumed = False
-        if not self.show:
-            return consumed
-        (mx, my) = mouse
-        (dx, dy) = delta
-        if mx >= self.pos[0] and mx <= self.pos[0] + self.size[0] and my >= self.pos[1] and my <= self.pos[1] + self.size[1]:
-            consumed = True
-            if not self.focus:
-                return consumed
-            if my >= self.pos[1] and my <= self.pos[1] + 30: # Dragging the top
-                self.pos[0] = clamp(self.pos[0] + dx, 0, SCREEN_W - self.size[0])
-                self.pos[1] = clamp(self.pos[1] + dy, 0, SCREEN_H - self.size[1])
-            else: # Sliders
-                for slider in self.sliders:
-                    if slider.mouse_drag(mouse, delta):
-                        consumed = True
-                        self.changed = True
-                self.r = int(self.sliders[0].get_value() * 255)
-                self.g = int(self.sliders[1].get_value() * 255)
-                self.b = int(self.sliders[2].get_value() * 255)
-
-        return consumed
-
-    def mouse_released(self, mouse):
-        self.focus = False
-
-    def set_state(self, state):
-        self.show = state
-        
-    def get_state(self):
-        return self.show
-    
-    def show(self):
-        self.show = True
-
-    def hide(self):
-        self.show = False
-
-    def toggle(self):
-        self.show = not self.show
-
-    def set_color(self, color):
-        self.r = color[0]
-        self.g = color[1]
-        self.b = color[2]
-        
-        for i in range(3):
-            self.sliders[i].value = color[i] / 255
-
-
-    def get_color(self):
-        return (self.r, self.g, self.b)
-
-class ImageEditWindow:
-    def __init__(self, size):
-        self.size = size
-        self.pixels = []
-        self.palette_size = 16
-        self.palette = []
-        for _ in range(self.palette_size):
-            self.palette.append((255, 255, 255))
-        for i in range(self.size[0] * self.size[1]):
-            self.pixels.append(self.palette_size - 1)
-
-    def from_data(size, palette, pixels):
-        _from = ImageEditWindow(size)
-        _from.palette_size = len(palette)
-        _from.palette = list(palette)
-        _from.pixels = list(pixels)
-        return _from
-
-    def render(self, surface, offset, pixel_size, show_grid):
-        pyg.draw.rect(surface, (255, 255, 255), (offset[0], offset[1], pixel_size * self.size[0], pixel_size * self.size[1]))
-        for y in range(self.size[1]):
-            for x in range(self.size[0]):
-                if pixel_size >= 8 and show_grid:
-                    pyg.draw.rect(surface, (0, 0, 0), (offset[0] + x * pixel_size, offset[1] + y * pixel_size, pixel_size, pixel_size))
-                    pyg.draw.rect(surface, self.palette[self.pixels[x + y * self.size[0]]], (offset[0] + x * pixel_size + 1, offset[1] + y * pixel_size + 1, pixel_size - 2, pixel_size - 2))
-                else:
-                    pyg.draw.rect(surface, self.palette[self.pixels[x + y * self.size[0]]], (offset[0] + x * pixel_size, offset[1] + y * pixel_size, pixel_size, pixel_size))
-
-    def set_pixel(self, pos, color):
-        self.pixels[pos[0] + pos[1] * self.size[0]] = color
-
-    def get_w(self):
-        return self.size[0]
-
-    def get_h(self):
-        return self.size[1]
-
-    def get_size(self):
-        return self.size
-
-    def get_palette(self):
-        _pal = list()
-        for pc in self.palette:
-            _pal.append(pc)
-        return _pal
-
-    def get_index_data(self):
-        _data = list()
-        for r in range(self.get_h()):
-            _row = list()
-            for c in range(self.get_w()):
-                _row.append(self.pixels[c + r * self.get_h()])
-            _data.append(list(_row))
-        return _data
-
-    def get_pixel_data(self):
-        _data = list()
-        _pal = self.get_palette()
-        for r in range(self.get_h()):
-            _row = list()
-            for c in range(self.get_w()):
-                _row.append(_pal[self.pixels[c + r * self.get_h()]])
-            _data.append(list(_row))
-        return _data
+assets = Assets()
 
 edit_window = ImageEditWindow((32, 32))
-picker = ColorPicker()
+picker = ColorPicker((SCREEN_W / 2, SCREEN_H / 2))
 
-palette = []
-create_default_palette()
+palette = create_default_palette()
 
 selected_palette = 0
 selected_secondary = 1
@@ -518,9 +89,8 @@ pix_y = SCREEN_H / 2 - edit_window.size[1] * pix_size / 2
 
 control = False
 
-load_assets()
-grid_button = Button((4, SCREEN_H - 50), image = (icon_grid, icon_grid_active))
-wheel_button = Button((40, SCREEN_H - 50), image = (icon_color_wheel, icon_color_wheel_active))
+grid_button = Button((4, SCREEN_H - 50), image = ("grid", "grid_active"), assets = assets)
+wheel_button = Button((40, SCREEN_H - 50), image = ("color_wheel", "color_wheel_active"), assets = assets)
 
 buttons = (grid_button, wheel_button)
 
@@ -577,7 +147,7 @@ while running:
                     (_w, _h) = ask_width_height()
                     if _w > 0 and _h > 0:
                         edit_window = ImageEditWindow((_w, _h))
-                        create_default_palette()
+                        palette = create_default_palette()
                         selected_palette = 0
                         selected_secondary = 1
                         picker.set_color(palette[selected_palette].color)
@@ -717,10 +287,10 @@ while running:
         pc.render(screen, selected_palette, selected_secondary)
         edit_window.palette[i] = pc.color
 
-    grid_button.render(screen, font)
-    wheel_button.render(screen, font);
+    for button in buttons:
+        button.render(assets, screen, font)
 
-    picker.render(screen)
+    picker.render(screen, font)
     
     pyg.display.flip()
 
