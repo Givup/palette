@@ -46,7 +46,7 @@ SCREEN_H = 600
 TOOL_W = 125
 
 pyg.init()
-screen = pyg.display.set_mode((SCREEN_W, SCREEN_H))
+screen = pyg.display.set_mode((SCREEN_W, SCREEN_H), pyg.RESIZABLE)
 edit_surface = pyg.Surface((SCREEN_W - TOOL_W, SCREEN_H))
 pyg.display.set_caption("PixArt")
 font = pyg.font.SysFont("Arial", 20)
@@ -99,6 +99,16 @@ while running:
 
         if event.type == pyg.QUIT:
             running = False
+
+        if event.type == pyg.VIDEORESIZE:
+            if event.w < 800 or event.h < 600:
+                screen = pyg.display.set_mode((max(event.w, 800),max(event.h, 600)), pyg.RESIZABLE)
+            else:
+                print((event.w, event.h))
+                SCREEN_W = event.w
+                SCREEN_H = event.h
+                screen = pyg.display.set_mode((event.w, event.h), pyg.RESIZABLE)
+                edit_surface = pyg.Surface((SCREEN_W, SCREEN_H))
 
         if event.type == pyg.KEYDOWN:
 
