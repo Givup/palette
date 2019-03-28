@@ -94,8 +94,9 @@ control = False
 
 grid_button = Button([4, SCREEN_H - 50], image = ("grid", "grid_active"), assets = assets)
 wheel_button = Button([40, SCREEN_H - 50], image = ("color_wheel", "color_wheel_active"), assets = assets)
+fill_button = Button([76, SCREEN_H - 50], image = ("fill_tool", "fill_tool_active"), assets = assets)
 
-buttons = (grid_button, wheel_button)
+buttons = (grid_button, wheel_button, fill_button)
 
 tool = "brush"
 
@@ -115,7 +116,7 @@ while running:
                 screen = pyg.display.set_mode((event.w, event.h), pyg.RESIZABLE)
                 edit_surface = pyg.Surface((SCREEN_W, SCREEN_H))
                 for button in buttons:
-                  button.pos[1] = SCREEN_H - 50
+                    button.pos[1] = SCREEN_H - 50
 
         if event.type == pyg.KEYDOWN:
 
@@ -157,11 +158,16 @@ while running:
 
             if event.key == pyg.K_f:
               if not control:
-                tool = "fill"
+                fill_button.toggle()
+                if fill_button.is_down():
+                    tool = "fill"
+                else:
+                    tool = "brush"
                 
             if event.key == pyg.K_b:
               if not control:
                 tool = "brush"
+                fill_button.state = 0
                         
             if event.key == pyg.K_r:
                 if control:

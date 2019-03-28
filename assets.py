@@ -19,3 +19,5 @@ class Assets:
         self._images["grid"] = pyg.image.load("icons/grid.png")
         self._images["grid_active"] = pyg.image.load("icons/grid_active.png")
         self._images["logo"] = pyg.image.load("icons/logo.png")
+        self._images["fill_tool"] = pyg.image.load("icons/fill_tool.png")
+        self._images["fill_tool_active"] = pyg.image.load("icons/fill_tool_active.png")
