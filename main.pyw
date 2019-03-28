@@ -171,7 +171,7 @@ while running:
                         
             if event.key == pyg.K_r:
                 if control:
-                    load_assets()
+                    assets.reload()
 
             if event.key == pyg.K_n:
                 if control:
