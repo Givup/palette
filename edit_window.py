@@ -31,6 +31,11 @@ class ImageEditWindow:
     def set_pixel(self, pos, color):
         self.pixels[pos[0] + pos[1] * self.size[0]] = color
 
+    def get_pixel(self, pos):
+        if pos[0] < 0 or pos[0] >= self.size[0] or pos[1] < 0 or pos[1] >= self.size[1]:
+            return -1
+        return self.pixels[pos[0] + pos[1] * self.size[0]]
+        
     def get_w(self):
         return self.size[0]
 

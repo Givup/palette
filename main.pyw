@@ -34,6 +34,9 @@ X: Swap main and secondary color
 C: Toggle color picker visibility
 G: Toggle grid visibility
 
+B: Set tool to "Brush"
+F: Set tool to "Fill"
+
 Escape: Quit application
 '''
 
@@ -89,10 +92,12 @@ pix_y = SCREEN_H / 2 - edit_window.size[1] * pix_size / 2
 
 control = False
 
-grid_button = Button((4, SCREEN_H - 50), image = ("grid", "grid_active"), assets = assets)
-wheel_button = Button((40, SCREEN_H - 50), image = ("color_wheel", "color_wheel_active"), assets = assets)
+grid_button = Button([4, SCREEN_H - 50], image = ("grid", "grid_active"), assets = assets)
+wheel_button = Button([40, SCREEN_H - 50], image = ("color_wheel", "color_wheel_active"), assets = assets)
 
 buttons = (grid_button, wheel_button)
+
+tool = "brush"
 
 while running:
     for event in pyg.event.get():
@@ -109,6 +114,8 @@ while running:
                 SCREEN_H = event.h
                 screen = pyg.display.set_mode((event.w, event.h), pyg.RESIZABLE)
                 edit_surface = pyg.Surface((SCREEN_W, SCREEN_H))
+                for button in buttons:
+                  button.pos[1] = SCREEN_H - 50
 
         if event.type == pyg.KEYDOWN:
 
@@ -148,6 +155,14 @@ while running:
                         selected_secondary = 1
                         picker.set_color(palette[selected_palette].color)
 
+            if event.key == pyg.K_f:
+              if not control:
+                tool = "fill"
+                
+            if event.key == pyg.K_b:
+              if not control:
+                tool = "brush"
+                        
             if event.key == pyg.K_r:
                 if control:
                     load_assets()
@@ -235,8 +250,8 @@ while running:
         wheel_button.state = 0
     picker.set_state(wheel_button.is_down())
     
-    # Editing the image
-    if mouse_down.count(True) == 1 and not mouse_down[MMIDDLE] and not mouse_consumed and not picker.focus:
+    # Editing the image, used with brush tool
+    if mouse_down.count(True) == 1 and not mouse_down[MMIDDLE] and not mouse_consumed and not picker.focus and tool == "brush":
         (mx, my) = mouse_pos
         (mxl, myl) = mouse_last # Last mouse position
         mx -= TOOL_W # Exclude the tool window area
@@ -252,9 +267,39 @@ while running:
                     if px1 >= 0 and px1 < edit_window.get_w() and py1 >= 0 and py1 < edit_window.get_h():
                         _palette_index = selected_palette
                         if mouse_down[MRIGHT]:
-                            _palette_index = selected_secondary
+                            _palette_index = selected_secondary  
                         for point in line(px0, py0, px1, py1):
                             edit_window.set_pixel(point, _palette_index)
+
+    if mouse_clicked[MLEFT] or mouse_clicked[MRIGHT] and tool == "fill":
+        (mx, my) = mouse_pos
+        mx -= TOOL_W # Exclude the tool window area
+        if mx > 0:
+            if mx >= pix_x and mx < (pix_x + edit_window.get_w() * pix_size) and my >= pix_y and my < (pix_y + edit_window.get_h() * pix_size):
+                px = int((mx - pix_x) / pix_size)
+                py = int((my - pix_y) / pix_size)
+        
+                _palette_index = selected_palette
+                if mouse_clicked[MRIGHT]:
+                    _palette_index = selected_secondary
+
+                replace_index = edit_window.get_pixel((px, py))
+                            
+                edit_window.set_pixel((px, py), _palette_index)
+
+                _open = [(px - 1, py), (px + 1, py), (px, py - 1), (px, py + 1)]
+                _visited = [(px, py)]
+                            
+                while len(_open) > 0:
+                    _current = _open.pop(0)
+                    if _current in _visited or edit_window.get_pixel(_current) != replace_index:
+                        continue
+                    _visited.append(_current)
+                    edit_window.set_pixel(_current, _palette_index)
+                    _open.append((_current[0] - 1, _current[1])) # Left
+                    _open.append((_current[0] + 1, _current[1])) # Right
+                    _open.append((_current[0], _current[1] - 1)) # Up
+                    _open.append((_current[0], _current[1] + 1)) # Down
     
     if mouse_down[MMIDDLE]:
         pix_x += mouse_delta[0]
